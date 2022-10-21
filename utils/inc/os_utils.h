@@ -32,6 +32,8 @@ typedef struct {
 
 /* Public prototypes *********************************************************/
 
+void OSUTILS_waitSystemStartup(void);
+void OSUTILS_setSystemReady(void);
 void OSUTILS_deleteQueue(QueueHandle_t* QueueToDelete);
 void OSUTILS_deleteSemaphore(SemaphoreHandle_t* semaphoreToDelete);
 void OSUTILS_createResponseQueue(queueCtxt_struct_t* queueContext, QueueHandle_t* queue, TickType_t queueTimeout);

@@ -159,6 +159,8 @@ void BUTDRV_process(void* pvParameters)
 
     _queueForButtons                       = xQueueCreate(10, sizeof(buttonEvent));
 
+    OSUTILS_waitSystemStartup();
+
     for (;;) {
         if (xQueueReceive(_queueForButtons, &buttonEvent, taskBlockTime) == pdTRUE) {
             switch (buttonEvent.type) {

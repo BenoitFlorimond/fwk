@@ -133,6 +133,8 @@ void LEDDRV_process(void* pvParameters)
     ledc_timer_config(&_ledTimer);
     ledc_fade_func_install(0);
 
+    OSUTILS_waitSystemStartup();
+
     for (;;) {
         if (xQueueReceive(_queueForLeds, &event, ticksToBlock) == pdTRUE) {
             switch (event.type) {
