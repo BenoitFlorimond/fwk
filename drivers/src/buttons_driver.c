@@ -9,14 +9,16 @@
 /* Includes ******************************************************************/
 
 #include "buttons_driver.h"
-#include "os_utils.h"
-#include <string.h>
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "os_utils.h"
+#include <string.h>
 
 /* Private Defines & MacrosUtils **************************************************/
 
 #define TAG_BUTTON                              ("BUT")
+#define TASK_STACK_SIZE                         (3076)
+#define TASK_PRIO                               (4)
 #define BUTTON_PRESSED_SHORT_DURATION_TICKS     (pdMS_TO_TICKS(50U))
 #define BUTTON_PRESSED_LONG_DURATION_TICKS      (pdMS_TO_TICKS(3000U))
 #define BUTTON_PRESSED_VERY_LONG_DURATION_TICKS (pdMS_TO_TICKS(10000U))
@@ -86,6 +88,7 @@ static uint8_t _buttonNumber                                  = 0;
 /* Private prototypes ********************************************************/
 
 static void _buttonsISR(void* gpioNum);
+static void _process(void* priv);
 static bool _getButtonFromGpio(uint32_t gpio, buttonContext_struct_t** pButton);
 static bool _notifyToUpperLayer(uint32_t triggerBitmap, buttonConfig_struct_t* pButtonConfig);
 
@@ -113,40 +116,7 @@ static void _buttonsISR(void* gpioNum)
     }
 }
 
-static bool _getButtonFromGpio(uint32_t gpio, buttonContext_struct_t** pButton)
-{
-    bool result = false;
-
-    for (uint8_t buttonCounter = 0U; buttonCounter < _buttonNumber; buttonCounter++) {
-        if (_buttonsList[buttonCounter].config.gpio == gpio) {
-            *pButton = &_buttonsList[buttonCounter];
-            result   = true;
-            break;
-        }
-    }
-    return result;
-}
-
-static bool _notifyToUpperLayer(uint32_t triggerBitmap, buttonConfig_struct_t* pButtonConfig)
-{
-    buttonEvent_struct_t upperLayerEvent;
-    bool result                   = false;
-
-    upperLayerEvent.triggerBitmap = triggerBitmap;
-    if (upperLayerEvent.triggerBitmap != BUTTON_TRIGGER_NONE) {
-        upperLayerEvent.gpio = pButtonConfig->gpio;
-        if (pButtonConfig->eventQueue != NULL) {
-            xQueueSend(pButtonConfig->eventQueue, &upperLayerEvent, 10);
-            result = true;
-        }
-    }
-
-    return result;
-}
-
-/* Public Functions **********************************************************/
-
-void BUTDRV_process(void* pvParameters)
+static void _process(void* priv)
 {
     buttonQueueEvent_struct_t buttonEvent  = { 0 };
     buttonContext_struct_t* pCurrentButton = NULL;
@@ -253,6 +223,48 @@ void BUTDRV_process(void* pvParameters)
             }
         }
     }
+}
+
+static bool _getButtonFromGpio(uint32_t gpio, buttonContext_struct_t** pButton)
+{
+    bool result = false;
+
+    for (uint8_t buttonCounter = 0U; buttonCounter < _buttonNumber; buttonCounter++) {
+        if (_buttonsList[buttonCounter].config.gpio == gpio) {
+            *pButton = &_buttonsList[buttonCounter];
+            result   = true;
+            break;
+        }
+    }
+    return result;
+}
+
+static bool _notifyToUpperLayer(uint32_t triggerBitmap, buttonConfig_struct_t* pButtonConfig)
+{
+    buttonEvent_struct_t upperLayerEvent;
+    bool result                   = false;
+
+    upperLayerEvent.triggerBitmap = triggerBitmap;
+    if (upperLayerEvent.triggerBitmap != BUTTON_TRIGGER_NONE) {
+        upperLayerEvent.gpio = pButtonConfig->gpio;
+        if (pButtonConfig->eventQueue != NULL) {
+            xQueueSend(pButtonConfig->eventQueue, &upperLayerEvent, 10);
+            result = true;
+        }
+    }
+
+    return result;
+}
+
+/* Public Functions **********************************************************/
+
+esp_err_t BUTDRV_init(void)
+{
+    if (xTaskCreate(_process, TAG_BUTTON, TASK_STACK_SIZE, NULL, TASK_PRIO, NULL) != pdPASS) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    return ESP_OK;
 }
 
 bool BUTDRV_registerButton(uint32_t gpio, uint32_t triggerBitmap, QueueHandle_t eventQueue)

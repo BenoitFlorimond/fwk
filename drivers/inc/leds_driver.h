@@ -13,6 +13,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <esp_err.h>
 
 /* Public Defines & Macros ***************************************************/
 
@@ -24,7 +25,7 @@
 
 /* Public prototypes *********************************************************/
 
-void LEDDRV_process(void* pvParameters);
+esp_err_t LEDDRV_init(void);
 
 uint8_t LEDDRV_registerLed(uint32_t rGpio, uint32_t gGpio, uint32_t bGpio);
 

@@ -10,14 +10,16 @@
 
 #include "leds_driver.h"
 #include "driver/ledc.h"
-#include "freertos_includes.h"
 #include "esp_log.h"
+#include "freertos_includes.h"
 #include "os_utils.h"
 #include <string.h>
 
 /* Private Defines & Macros **************************************************/
 
 #define TAG_LEDS                              ("LEDS")
+#define TASK_STACK_SIZE                       (2048)
+#define TASK_PRIO                             (4)
 #define MAX_REGISTERED_LEDS                   (LEDC_CHANNEL_MAX) /* If only one color LEDs */
 
 #define PIN_RED_INDEX                         (0)
@@ -97,32 +99,12 @@ static ledBlinkContext_struct_t _ledsContext[MAX_REGISTERED_LEDS] = { 0 };
 
 /* Private prototypes ********************************************************/
 
+static void _process(void* priv);
 static void _setLed(uint8_t handle, uint32_t rgbColor, bool fade, uint32_t fadeDelayMs);
 
 /* Private Functions *********************************************************/
 
-static void _setLed(uint8_t handle, uint32_t rgbColor, bool fade, uint32_t fadeDelayMs)
-{
-    uint8_t colorIndex = 0;
-    uint32_t dutyCycle = 0;
-
-    for (colorIndex = 0; colorIndex < MAX_PINS_PER_LED; colorIndex++) {
-        if (_ledChannels[handle][colorIndex] < LEDC_CHANNEL_MAX) {
-            dutyCycle = _gainPerColor[colorIndex] * GET_SINGLE_COLOR_FROM_RGB(rgbColor, colorIndex) * BIT(LEDC_TIMER_13_BIT) / 0xFF;
-            if (fade) {
-                ledc_set_fade_with_time(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex], dutyCycle, fadeDelayMs);
-                ledc_fade_start(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex], LEDC_FADE_NO_WAIT);
-            } else {
-                ledc_set_duty(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex], dutyCycle);
-                ledc_update_duty(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex]);
-            }
-        }
-    }
-}
-
-/* Public Functions **********************************************************/
-
-void LEDDRV_process(void* pvParameters)
+static void _process(void* priv)
 {
     ledEvent_struct_t event    = { 0 };
     _queueForLeds              = xQueueCreate(10, sizeof(ledEvent_struct_t));
@@ -195,6 +177,36 @@ void LEDDRV_process(void* pvParameters)
             ticksToBlock = portMAX_DELAY;
         }
     }
+}
+
+static void _setLed(uint8_t handle, uint32_t rgbColor, bool fade, uint32_t fadeDelayMs)
+{
+    uint8_t colorIndex = 0;
+    uint32_t dutyCycle = 0;
+
+    for (colorIndex = 0; colorIndex < MAX_PINS_PER_LED; colorIndex++) {
+        if (_ledChannels[handle][colorIndex] < LEDC_CHANNEL_MAX) {
+            dutyCycle = _gainPerColor[colorIndex] * GET_SINGLE_COLOR_FROM_RGB(rgbColor, colorIndex) * BIT(LEDC_TIMER_13_BIT) / 0xFF;
+            if (fade) {
+                ledc_set_fade_with_time(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex], dutyCycle, fadeDelayMs);
+                ledc_fade_start(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex], LEDC_FADE_NO_WAIT);
+            } else {
+                ledc_set_duty(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex], dutyCycle);
+                ledc_update_duty(LEDC_HIGH_SPEED_MODE, _ledChannels[handle][colorIndex]);
+            }
+        }
+    }
+}
+
+/* Public Functions **********************************************************/
+
+esp_err_t LEDDRV_init(void)
+{
+    if (xTaskCreate(_process, TAG_LEDS, TASK_STACK_SIZE, NULL, TASK_PRIO, NULL) != pdPASS) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    return ESP_OK;
 }
 
 uint8_t LEDDRV_registerLed(uint32_t rGpio, uint32_t gGpio, uint32_t bGpio)

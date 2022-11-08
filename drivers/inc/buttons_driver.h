@@ -31,7 +31,7 @@ typedef struct {
 
 /* Public prototypes *********************************************************/
 
-void BUTDRV_process(void* pvParameters);
+esp_err_t BUTDRV_init(void);
 
 bool BUTDRV_registerButton(uint32_t gpio, uint32_t triggerBitmap, QueueHandle_t eventQueue);
 
