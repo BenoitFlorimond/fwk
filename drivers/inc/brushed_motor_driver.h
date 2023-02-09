@@ -19,12 +19,14 @@
 
 struct brushedMotorConf_struct_t;
 typedef struct brushedMotorConf_struct_t* brushedMotorHandle_t;
-typedef void * (*brushedMotorInitCbk_t)(uint32_t freq, void * args);
-typedef esp_err_t (*brushedMotorSetDutyCycleCbk_t)(void * handle, float dutyCycle);
+typedef void* (*brushedMotorInitCbk_t)(brushedMotorHandle_t handle);
+typedef esp_err_t (*brushedMotorSetDutyCycleCbk_t)(void* hilHandle, float dutyCycle);
 
 /* Public prototypes *********************************************************/
 
-brushedMotorHandle_t BMDRV_addMotor(uint32_t freq, brushedMotorInitCbk_t initCbk, void * initArgs, brushedMotorSetDutyCycleCbk_t setDutyCycleCbk);
+brushedMotorHandle_t BMDRV_createMotor(brushedMotorInitCbk_t initCbk, brushedMotorSetDutyCycleCbk_t setDutyCycleCbk);
+
+esp_err_t BMDRV_initMotor(brushedMotorHandle_t motorHandle);
 
 esp_err_t BMDRV_setSpeed(brushedMotorHandle_t motorHandle, float dutyCycle);
 
