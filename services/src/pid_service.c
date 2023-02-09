@@ -37,8 +37,8 @@ typedef struct {
     double sp;
     double err;
     double errSum;
-    pidReadOutputCbk measureOutputCbk;
-    pidSetOutputCbk setOutputCbk;
+    pidReadOutputCbk_t measureOutputCbk;
+    pidSetOutputCbk_t setOutputCbk;
 } pidConfig_struct_t;
 
 /* Private variables *********************************************************/
@@ -85,7 +85,13 @@ static void _runPid(pidConfig_struct_t* pid)
         return;
     }
 
-    if (pid->measureOutputCbk(&measure) != ESP_OK) {
+    if (++pid->decimationCounter < pid->decimation) {
+        return;
+    }
+
+    pid->decimationCounter = 0;
+
+    if (pid->measureOutputCbk((pidHandle_t)pid, &measure) != ESP_OK) {
         return;
     }
 
@@ -94,9 +100,9 @@ static void _runPid(pidConfig_struct_t* pid)
     pid->errSum += pid->err;
     output = pid->kp * pid->err + pid->ki * pid->errSum * _samplingPeriodMs * pid->decimation + pid->kd * (pid->err - lastErr);
 
-    PID_DEBUG("ID%d: sp=%0.2f, measure=%0.2f, err=%0.2f, err_sum=%0.2f, out=%0.2f", pid->id, pid->sp, measure, pid->err, pid->errSum, output);
+    PID_DEBUG("ID%d:\t sp=%0.2f,\t measure=%0.2f,\t err=%0.2f,\t err_sum=%0.2f, \tdelta=%0.2f,\t out=%0.2f", pid->id, pid->sp, measure, pid->err, pid->errSum, pid->err - lastErr, output);
 
-    pid->setOutputCbk(output);
+    pid->setOutputCbk((pidHandle_t)pid, output);
 }
 
 /* Public Functions **********************************************************/
@@ -125,19 +131,19 @@ esp_err_t PIDSVC_init(uint32_t samplingPeriodMs)
     return ESP_OK;
 }
 
-esp_err_t PIDSVC_addPid(uint32_t decimation, double kp, double ki, double kd, double sp, pidSetOutputCbk setOutput, pidReadOutputCbk readOutput)
+pidHandle_t PIDSVC_createPid(uint32_t decimation, double kp, double ki, double kd, double sp, pidSetOutputCbk_t setOutput, pidReadOutputCbk_t readOutput)
 {
     pidConfig_struct_t* conf = NULL;
 
     if (setOutput == NULL || readOutput == NULL) {
         PID_ERROR("Could not add PID because one callback is NULL");
-        return ESP_ERR_INVALID_ARG;
+        return NULL;
     }
 
     conf = malloc(sizeof(pidConfig_struct_t));
     if (conf == NULL) {
         PID_ERROR("Could not add PID because we are out of memory");
-        return ESP_ERR_NO_MEM;
+        return NULL;
     }
 
     memset(conf, 0, sizeof(pidConfig_struct_t));
@@ -160,5 +166,5 @@ esp_err_t PIDSVC_addPid(uint32_t decimation, double kp, double ki, double kd, do
 
     _pidsConf[conf->id] = conf;
 
-    return ESP_OK;
+    return (pidHandle_t)conf;
 }
