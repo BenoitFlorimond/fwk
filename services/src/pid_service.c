@@ -43,10 +43,10 @@ typedef struct {
 
 /* Private variables *********************************************************/
 
-static TaskHandle_t _taskHandle                       = NULL;
-static pidConfig_struct_t* _pidsConf[PIDS_MAX_NUMBER] = { 0 };
-static uint8_t _pidNumber                             = 0;
-static uint32_t _samplingPeriodMs                     = 0;
+static TaskHandle_t _taskHandle                                 = NULL;
+static pidConfig_struct_t* _pidsConf[CONFIG_FWK_PID_MAX_NUMBER] = { 0 };
+static uint8_t _pidNumber                                       = 0;
+static uint32_t _samplingPeriodMs                               = 0;
 
 /* Private prototypes ********************************************************/
 
@@ -109,6 +109,8 @@ static void _runPid(pidConfig_struct_t* pid)
 
 esp_err_t PIDSVC_init(uint32_t samplingPeriodMs)
 {
+    esp_log_level_set(TASK_TAG, CONFIG_FWK_PID_SERVICE_LOG_LEVEL);
+
     if (samplingPeriodMs == 0) {
         PID_ERROR("PID init failed because sampling period is 0");
         return ESP_ERR_INVALID_ARG;

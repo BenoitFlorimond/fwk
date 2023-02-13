@@ -1,0 +1,38 @@
+menuconfig FWK_PID_SERVICE
+    bool "PID regulation service"
+    default n
+    
+if FWK_PID_SERVICE
+
+    config FWK_PID_MAX_NUMBER
+        int "Maximum number of PIDs"
+        default 10
+        
+    choice FWK_PID_SERVICE_LOG_LEVEL
+        bool "PID service log verbosity"
+        default FWK_PID_SERVICE_LOG_LEVEL_INFO
+
+        config FWK_PID_SERVICE_LOG_LEVEL_NONE
+            bool "No output"
+        config FWK_PID_SERVICE_LOG_LEVEL_ERROR
+            bool "Error"
+        config FWK_PID_SERVICE_LOG_LEVEL_WARN
+            bool "Warning"
+        config FWK_PID_SERVICE_LOG_LEVEL_INFO
+            bool "Info"
+        config FWK_PID_SERVICE_LOG_LEVEL_DEBUG
+            bool "Debug"
+        config FWK_PID_SERVICE_LOG_LEVEL_VERBOSE
+            bool "Verbose"
+    endchoice
+
+    config FWK_PID_SERVICE_LOG_LEVEL
+        int
+        default 0 if FWK_PID_SERVICE_LOG_LEVEL_NONE
+        default 1 if FWK_PID_SERVICE_LOG_LEVEL_ERROR
+        default 2 if FWK_PID_SERVICE_LOG_LEVEL_WARN
+        default 3 if FWK_PID_SERVICE_LOG_LEVEL_INFO
+        default 4 if FWK_PID_SERVICE_LOG_LEVEL_DEBUG
+        default 5 if FWK_PID_SERVICE_LOG_LEVEL_VERBOSE
+
+endif
